@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	curl_mimepart *Pointer_Message_Part;
 	struct curl_slist *Pointer_Header_Strings_List = NULL, *Pointer_Recipients_Strings_List = NULL;
 	CURLcode Result;
-	char *Pointer_String_Configuration_Name = "test"; // TEST
+	char String_Temporary[1024], *Pointer_String_Configuration_Name = "test"; // TEST
 	
 	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] [--verbose] message_text
 	
@@ -158,7 +158,8 @@ int main(int argc, char *argv[])
 	}
 	
 	// Create email header
-	Pointer_Header_Strings_List = curl_slist_append(NULL, "From: CHANGEME"); // Create a new list by providing "NULL" as first argument
+	snprintf(String_Temporary, sizeof(String_Temporary), "From: %s", Main_Email_Configuration.String_Sender_Email);
+	Pointer_Header_Strings_List = curl_slist_append(NULL, String_Temporary); // Create a new list by providing "NULL" as first argument
 	if (Pointer_Header_Strings_List == NULL)
 	{
 		printf("Error : failed to set 'From' header field.\n");
@@ -188,26 +189,31 @@ int main(int argc, char *argv[])
 		printf("Error : failed to set CURLOPT_MIMEPOST option.\n");
 		goto Exit;
 	}
-	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_URL, "smtp://CHANGEME") != CURLE_OK)
+	snprintf(String_Temporary, sizeof(String_Temporary), "smtp://%s", Main_Email_Configuration.String_SMTP_Server);
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_URL, String_Temporary) != CURLE_OK)
 	{
 		printf("Error : failed to set SMTP server URL.\n");
 		goto Exit;
 	}
-	// Authentication support
-	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USERNAME, "CHANGEME") != CURLE_OK)
+	
+	// Enable SSL/TLS authentication if present in configuration file
+	if (Main_Email_Configuration.String_Authentication_User_Name[0] != 0)
 	{
-		printf("Error : failed to set TLS authentication user name.\n");
-		goto Exit;
-	}
-    if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_PASSWORD, "CHANGEME") != CURLE_OK)
-	{
-		printf("Error : failed to set TLS authentication password.\n");
-		goto Exit;
-	}
-	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USE_SSL, CURLUSESSL_ALL) != CURLE_OK)
-	{
-		printf("Error : failed to enable TLS mode.\n");
-		goto Exit;
+		if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USERNAME, Main_Email_Configuration.String_Authentication_User_Name) != CURLE_OK)
+		{
+			printf("Error : failed to set TLS authentication user name.\n");
+			goto Exit;
+		}
+		if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_PASSWORD, Main_Email_Configuration.String_Authentication_Password) != CURLE_OK)
+		{
+			printf("Error : failed to set TLS authentication password.\n");
+			goto Exit;
+		}
+		if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USE_SSL, CURLUSESSL_ALL) != CURLE_OK)
+		{
+			printf("Error : failed to enable TLS mode.\n");
+			goto Exit;
+		}
 	}
 	
 	//curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_VERBOSE, 1);
