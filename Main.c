@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 	CURLcode Result;
 	char String_Temporary[1024], String_Recipient[768], String_User_Input[768];
 	
-	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] [--verbose] message_text
+	// Retrieve command-line parameters
 	for (i = 1; i < argc; i++) // Start from 1 to bypass program name
 	{
 		// Should usage message be displayed ?
@@ -229,6 +229,29 @@ int main(int argc, char *argv[])
 	{
 		printf("Error : failed to set cURL message text content type.\n");
 		goto Exit;
+	}
+	
+	// Ask user for an optional attachment
+	printf("Enter an attached file path (leave empty for no attachment) : ");
+	MainReadUserInput(sizeof(String_Temporary), String_Temporary);
+	if (String_Temporary[0] != 0)
+	{
+		Pointer_Message_Part = curl_mime_addpart(Pointer_Message);
+		if (Pointer_Message_Part == NULL)
+		{
+			printf("Error : failed to add attachment part to cURL message.\n");
+			goto Exit;
+		}
+		if (curl_mime_filedata(Pointer_Message_Part, String_Temporary) != CURLE_OK)
+		{
+			printf("Error : failed to attach file \"%s\".\n", String_Temporary);
+			goto Exit;
+		}
+		if (curl_mime_encoder(Pointer_Message_Part, "base64") != CURLE_OK)
+		{
+			printf("Error : failed to encode attached file in base 64.\n");
+			goto Exit;
+		}
 	}
 	
 	// Configure email settings
