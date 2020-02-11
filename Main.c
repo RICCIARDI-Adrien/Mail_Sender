@@ -56,6 +56,13 @@ static int MainLoadConfiguration(char *Pointer_String_Configuration_Key_Name)
 		goto Exit;
 	}
 	
+	// Check whether requested configuration is present
+	if (!iniparser_find_entry(Pointer_Ini_Dictionary, Pointer_String_Configuration_Key_Name))
+	{
+		printf("The requested email configuration was not found in the configuration file.\n");
+		goto Exit;
+	}
+	
 	// Load sender email
 	snprintf(String_Temporary, sizeof(String_Temporary), "%s:SenderEmail", Pointer_String_Configuration_Key_Name);
 	strncpy(Main_Email_Configuration.String_Sender_Email, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Sender_Email));
@@ -127,7 +134,7 @@ int main(int argc, char *argv[])
 	curl_mimepart *Pointer_Message_Part;
 	struct curl_slist *Pointer_Header_Strings_List = NULL, *Pointer_Recipients_Strings_List = NULL;
 	CURLcode Result;
-	char String_Temporary[1024], String_Recipient[768], String_User_Input[768], *Pointer_String_Configuration_Name = "test"; // TEST
+	char String_Temporary[1024], String_Recipient[768], String_User_Input[768];
 	
 	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] [--verbose] message_text
 	for (i = 1; i < argc; i++) // Start from 1 to bypass program name
@@ -135,16 +142,20 @@ int main(int argc, char *argv[])
 		// Should usage message be displayed ?
 		if (strcmp("--help", argv[i]) == 0)
 		{
-			printf("Usage : %s [--verbose] attachment_file\n", argv[0]);
+			printf("Usage : %s [--verbose] [--help]\n", argv[0]);
 			return EXIT_SUCCESS;
 		}
 		// Should verbose mode be enabled ?
 		else if (strcmp("--verbose", argv[i]) == 0) Is_Verbose_Mode_Enabled = 1;
 	}
 	
+	// Ask user for an email configuration
+	printf("Please enter email configuration name : ");
+	MainReadUserInput(sizeof(String_Temporary), String_Temporary);
+	
 	// Try to load requested configuration
-	if (MainLoadConfiguration(Pointer_String_Configuration_Name) != 0) return EXIT_FAILURE;
-	printf("Configuration \"%s\" has been successfully loaded.\n", Pointer_String_Configuration_Name);
+	if (MainLoadConfiguration(String_Temporary) != 0) return EXIT_FAILURE;
+	printf("Configuration \"%s\" has been successfully loaded.\n", String_Temporary);
 	
 	// Initialize cURL library
 	if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK)
