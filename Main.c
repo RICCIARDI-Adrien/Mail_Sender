@@ -83,13 +83,13 @@ static int MainLoadConfiguration(char *Pointer_String_Configuration_Key_Name)
 		goto Exit;
 	}
 	
-	// Authentication user name
+	// Load authentication user name
 	snprintf(String_Temporary, sizeof(String_Temporary), "%s:UserName", Pointer_String_Configuration_Key_Name);
 	strncpy(Main_Email_Configuration.String_Authentication_User_Name, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Authentication_User_Name));
 	Main_Email_Configuration.String_Authentication_User_Name[sizeof(Main_Email_Configuration.String_Authentication_User_Name) - 1] = 0; // Make sure string is terminated
 	if (Main_Email_Configuration.String_Authentication_User_Name[0] == 0) printf("Information : no authentication user name is provided in configuration \"%s\", disabling SSL/TLS authentication. Please add two keys named \"UserName\" and \"Password\" to enable authentication.\n", Pointer_String_Configuration_Key_Name);
 	
-	// Authentication password
+	// Load authentication password
 	snprintf(String_Temporary, sizeof(String_Temporary), "%s:Password", Pointer_String_Configuration_Key_Name);
 	strncpy(Main_Email_Configuration.String_Authentication_Password, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Authentication_Password));
 	Main_Email_Configuration.String_Authentication_Password[sizeof(Main_Email_Configuration.String_Authentication_Password) - 1] = 0; // Make sure string is terminated
@@ -297,7 +297,11 @@ int main(int argc, char *argv[])
 	
 	// Specify all email recipients
 	Pointer_Recipients_Strings_List = curl_slist_append(NULL, String_Recipient);
-	curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_MAIL_RCPT, Pointer_Recipients_Strings_List);
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_MAIL_RCPT, Pointer_Recipients_Strings_List) != CURLE_OK)
+	{
+		printf("Error : failed to set mail recipient addresses list.\n");
+		goto Exit;
+	}
 	
 	// Send email
 	printf("Sending message...\n");
