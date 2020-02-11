@@ -3,8 +3,101 @@
  * @author Adrien RICCIARDI
  */
 #include <curl/curl.h>
+#include <iniparser/iniparser.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+//-------------------------------------------------------------------------------------------------
+// Private constants
+//-------------------------------------------------------------------------------------------------
+/** The configuration default file name.
+ * @todo Add a command-line parameter to specify another configuration file.
+ */
+#define MAIN_CONFIGURATION_FILE_NAME "Configuration.ini"
+
+//-------------------------------------------------------------------------------------------------
+// Private types
+//-------------------------------------------------------------------------------------------------
+/** All needed settings to be able to send an email. */
+typedef struct
+{
+	char String_Sender_Email[256]; //!< The address to send the email from.
+	char String_SMTP_Server[256]; //!< The SMTP server URL.
+	char String_Authentication_User_Name[256]; //!< The name to provide to SSL/TLS authentication step.
+	char String_Authentication_Password[256]; //!< The password to provide to SSL/TLS authentication step.
+} TMainEmailConfiguration;
+
+//-------------------------------------------------------------------------------------------------
+// Private variables
+//-------------------------------------------------------------------------------------------------
+/** The currently in use configuration. */
+static TMainEmailConfiguration Main_Email_Configuration;
+
+//-------------------------------------------------------------------------------------------------
+// Private functions
+//-------------------------------------------------------------------------------------------------
+/** Load the requested configuration data from the configuration file.
+ * @param Pointer_String_Configuration_Key_Name The configuration to load (this is the INI section identifier).
+ * @return -1 if an error occurred,
+ * @return 0 on success.
+ */
+static int MainLoadConfiguration(char *Pointer_String_Configuration_Key_Name)
+{
+	int Return_Value = -1;
+	dictionary *Pointer_Ini_Dictionary = NULL;
+	char String_Temporary[1024];
+	
+	// Parse configuration file
+	Pointer_Ini_Dictionary = iniparser_load(MAIN_CONFIGURATION_FILE_NAME);
+	if (Pointer_Ini_Dictionary == NULL)
+	{
+		printf("Error : could not find configuration file.\n");
+		goto Exit;
+	}
+	
+	// Load sender email
+	snprintf(String_Temporary, sizeof(String_Temporary), "%s:SenderEmail", Pointer_String_Configuration_Key_Name);
+	strncpy(Main_Email_Configuration.String_Sender_Email, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Sender_Email));
+	Main_Email_Configuration.String_Sender_Email[sizeof(Main_Email_Configuration.String_Sender_Email) - 1] = 0; // Make sure string is terminated
+	if (Main_Email_Configuration.String_Sender_Email[0] == 0)
+	{
+		printf("Error : no sender email is provided in configuration \"%s\", please add a key named \"SenderEmail\".\n", Pointer_String_Configuration_Key_Name);
+		goto Exit;
+	}
+	
+	// Load SMTP server
+	snprintf(String_Temporary, sizeof(String_Temporary), "%s:SmtpServer", Pointer_String_Configuration_Key_Name);
+	strncpy(Main_Email_Configuration.String_SMTP_Server, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_SMTP_Server));
+	Main_Email_Configuration.String_SMTP_Server[sizeof(Main_Email_Configuration.String_SMTP_Server) - 1] = 0; // Make sure string is terminated
+	if (Main_Email_Configuration.String_SMTP_Server[0] == 0)
+	{
+		printf("Error : no SMTP server is provided in configuration \"%s\", please add a key named \"SmtpServer\".\n", Pointer_String_Configuration_Key_Name);
+		goto Exit;
+	}
+	
+	// Authentication user name
+	snprintf(String_Temporary, sizeof(String_Temporary), "%s:UserName", Pointer_String_Configuration_Key_Name);
+	strncpy(Main_Email_Configuration.String_Authentication_User_Name, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Authentication_User_Name));
+	Main_Email_Configuration.String_Authentication_User_Name[sizeof(Main_Email_Configuration.String_Authentication_User_Name) - 1] = 0; // Make sure string is terminated
+	if (Main_Email_Configuration.String_Authentication_User_Name[0] == 0) printf("Information : no authentication user name is provided in configuration \"%s\", disabling SSL/TLS authentication. Please add two keys named \"UserName\" and \"Password\" to enable authentication.\n", Pointer_String_Configuration_Key_Name);
+	
+	// Authentication password
+	snprintf(String_Temporary, sizeof(String_Temporary), "%s:Password", Pointer_String_Configuration_Key_Name);
+	strncpy(Main_Email_Configuration.String_Authentication_Password, iniparser_getstring(Pointer_Ini_Dictionary, String_Temporary, ""), sizeof(Main_Email_Configuration.String_Authentication_Password));
+	Main_Email_Configuration.String_Authentication_Password[sizeof(Main_Email_Configuration.String_Authentication_Password) - 1] = 0; // Make sure string is terminated
+	// Make sure a password is provided if a user name has been provided
+	if ((Main_Email_Configuration.String_Authentication_Password[0] == 0) && (Main_Email_Configuration.String_Authentication_User_Name[0] != 0))
+	{
+		printf("Error : no authentication password is provided in configuration \"%s\" while an authentication user name is present. Please add a key named \"Password\" to allow SSL/TLS authentication to work or clear \"UserName\" key content to disable SSL/TLS authentication.\n", Pointer_String_Configuration_Key_Name);
+		goto Exit;
+	}
+	
+	Return_Value = 0;
+
+Exit:
+	if (Pointer_Ini_Dictionary != NULL) iniparser_freedict(Pointer_Ini_Dictionary);
+	return Return_Value;
+}
 
 //-------------------------------------------------------------------------------------------------
 // Entry point
@@ -17,8 +110,13 @@ int main(int argc, char *argv[])
 	curl_mimepart *Pointer_Message_Part;
 	struct curl_slist *Pointer_Header_Strings_List = NULL, *Pointer_Recipients_Strings_List = NULL;
 	CURLcode Result;
+	char *Pointer_String_Configuration_Name = "test"; // TEST
 	
-	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] message_text
+	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] [--verbose] message_text
+	
+	// Try to load requested configuration
+	if (MainLoadConfiguration(Pointer_String_Configuration_Name) != 0) return EXIT_FAILURE;
+	printf("Configuration \"%s\" has been successfully loaded.\n", Pointer_String_Configuration_Name);
 	
 	// Initialize cURL library
 	if (curl_global_init(CURL_GLOBAL_ALL) != CURLE_OK)
@@ -90,13 +188,13 @@ int main(int argc, char *argv[])
 		printf("Error : failed to set CURLOPT_MIMEPOST option.\n");
 		goto Exit;
 	}
-	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_URL, "smtp://CHANGEME) != CURLE_OK)
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_URL, "smtp://CHANGEME") != CURLE_OK)
 	{
 		printf("Error : failed to set SMTP server URL.\n");
 		goto Exit;
 	}
 	// Authentication support
-	if (curl_easy_setopt(curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USERNAME, "CHANGEME") != CURLE_OK)
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_USERNAME, "CHANGEME") != CURLE_OK)
 	{
 		printf("Error : failed to set TLS authentication user name.\n");
 		goto Exit;
