@@ -121,7 +121,7 @@ static void MainReadUserInput(size_t Maximum_Characters_Count, char *Pointer_Str
 //-------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-	int Return_Value = EXIT_FAILURE;
+	int Return_Value = EXIT_FAILURE, i, Is_Verbose_Mode_Enabled = 0;
 	CURL *Pointer_Easy_Handle;
 	curl_mime *Pointer_Message = NULL;
 	curl_mimepart *Pointer_Message_Part;
@@ -130,6 +130,17 @@ int main(int argc, char *argv[])
 	char String_Temporary[1024], String_Recipient[768], String_User_Input[768], *Pointer_String_Configuration_Name = "test"; // TEST
 	
 	// Retrieve command-line parameters TODO : -s sender_email_address -r recipient_email_address [-p sender_email_password] [-a attachment_file] [--verbose] message_text
+	for (i = 1; i < argc; i++) // Start from 1 to bypass program name
+	{
+		// Should usage message be displayed ?
+		if (strcmp("--help", argv[i]) == 0)
+		{
+			printf("Usage : %s [--verbose] attachment_file\n", argv[0]);
+			return EXIT_SUCCESS;
+		}
+		// Should verbose mode be enabled ?
+		else if (strcmp("--verbose", argv[i]) == 0) Is_Verbose_Mode_Enabled = 1;
+	}
 	
 	// Try to load requested configuration
 	if (MainLoadConfiguration(Pointer_String_Configuration_Name) != 0) return EXIT_FAILURE;
@@ -247,7 +258,8 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	//curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_VERBOSE, 1);
+	// Enable verbose mode if requested to
+	if (Is_Verbose_Mode_Enabled) curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_VERBOSE, 1);
 	
 	// Specify all email recipients
 	Pointer_Recipients_Strings_List = curl_slist_append(NULL, String_Recipient);
