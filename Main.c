@@ -271,6 +271,19 @@ int main(int argc, char *argv[])
 		printf("Error : failed to set SMTP server URL.\n");
 		goto Exit;
 	}
+	// Specify email sender
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_MAIL_FROM, Main_Email_Configuration.String_Sender_Email) != CURLE_OK)
+	{
+		printf("Error : failed to set CURLOPT_MAIL_FROM option.\n");
+		goto Exit;
+	}
+	// Specify all email recipients
+	Pointer_Recipients_Strings_List = curl_slist_append(NULL, String_Recipient);
+	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_MAIL_RCPT, Pointer_Recipients_Strings_List) != CURLE_OK)
+	{
+		printf("Error : failed to set mail recipient addresses list.\n");
+		goto Exit;
+	}
 	
 	// Enable SSL/TLS authentication if present in configuration file
 	if (Main_Email_Configuration.String_Authentication_User_Name[0] != 0)
@@ -294,14 +307,6 @@ int main(int argc, char *argv[])
 	
 	// Enable verbose mode if requested to
 	if (Is_Verbose_Mode_Enabled) curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_VERBOSE, 1);
-	
-	// Specify all email recipients
-	Pointer_Recipients_Strings_List = curl_slist_append(NULL, String_Recipient);
-	if (curl_easy_setopt(Pointer_Easy_Handle, CURLOPT_MAIL_RCPT, Pointer_Recipients_Strings_List) != CURLE_OK)
-	{
-		printf("Error : failed to set mail recipient addresses list.\n");
-		goto Exit;
-	}
 	
 	// Send email
 	printf("Sending message...\n");
