@@ -129,7 +129,7 @@ static void MainReadUserInput(size_t Maximum_Characters_Count, char *Pointer_Str
 int main(int argc, char *argv[])
 {
 	int Return_Value = EXIT_FAILURE, i, Is_Verbose_Mode_Enabled = 0;
-	CURL *Pointer_Easy_Handle;
+	CURL *Pointer_Easy_Handle = NULL;
 	curl_mime *Pointer_Message = NULL;
 	curl_mimepart *Pointer_Message_Part;
 	struct curl_slist *Pointer_Header_Strings_List = NULL, *Pointer_Recipients_Strings_List = NULL;
@@ -319,6 +319,7 @@ Exit:
 	if (Pointer_Recipients_Strings_List != NULL) curl_slist_free_all(Pointer_Recipients_Strings_List);
 	if (Pointer_Header_Strings_List != NULL) curl_slist_free_all(Pointer_Header_Strings_List);
 	if (Pointer_Message != NULL) curl_mime_free(Pointer_Message);
+	if (Pointer_Easy_Handle != NULL) curl_easy_cleanup(Pointer_Easy_Handle);
 	curl_global_cleanup();
 	return Return_Value;
 }
